@@ -33,31 +33,27 @@ class MovieListRequest(BaseModel):
 
 @app.post("/recommendations")
 def recommend_movies(data: MovieListRequest):
+    user_lists = []
     all_titles = []
+
     for user_input in data.users:
         titles = parse_input_list(user_input)
+        user_lists.append(set(titles))
         all_titles.extend(titles)
 
     movie_ids = [search_movie(title) for title in all_titles]
     movie_ids = list(set(filter(None, movie_ids)))
-    
-    print("Movie IDs:", movie_ids) #debug
 
+    overlap_titles = set.intersection(*user_lists) if len(user_lists) > 1 else set()  
 
     recommended_ids = get_combined_recommendations(movie_ids)
-    
-    print("Recommended IDs:", recommended_ids) #debug
 
+    recommended = [get_movie_details(mid) for mid in recommended_ids[:10]]
 
-    raw_recommendations = [get_movie_details(mid) for mid in recommended_ids[:10]]
+    overlap_ids = [search_movie(title) for title in overlap_titles]
+    overlap = [get_movie_details(mid) for mid in overlap_ids if mid]
 
-    recommendations = [
-        {
-            "title": movie.get("title"),
-            "release_date": movie.get("release_date"),
-            "summary": movie.get("overview")
+    return {
+            "overlap": overlap,
+            "recommendations": recommended
         }
-        for movie in raw_recommendations if movie
-    ]
-
-    return {"recommendations": recommendations}
